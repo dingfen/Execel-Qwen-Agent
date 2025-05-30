@@ -1,0 +1,3 @@
+[submodule "qwen_agent/gui/agent-vue-frontend"]
+	path = qwen_agent/gui/agent-vue-frontend
+	url = git@github.com:dingfen/vue-excel.git
