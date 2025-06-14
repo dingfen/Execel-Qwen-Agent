@@ -38,6 +38,7 @@ with open(server_config_path, 'r') as f:
     server_config = GlobalConfig(**server_config)
 
 llm_config = None
+tools = None
 
 if hasattr(server_config.server, 'llm'):
     llm_config = {
@@ -46,7 +47,30 @@ if hasattr(server_config.server, 'llm'):
         'model_server': server_config.server.model_server
     }
 
-assistant = Assistant(llm=llm_config)
+if hasattr(server_config.server, 'tools'):
+    tools = [
+        {'mcpServers': {
+            'time': {
+                'command': 'uvx',
+                'args': ['mcp-server-time', '--local-timezone=Asia/Shanghai']
+            },
+            'fetch': {
+                'command': 'uvx',
+                'args': ['mcp-server-fetch']
+            }
+        }},
+        'code_interpreter',
+        {
+            "mcpServers": {
+                "excel-stdio": {
+                    "command": "uv",
+                    "args": ["run", "excel-mcp-server", "stdio"]
+                }
+            }
+        }
+    ]
+
+assistant = Assistant(llm=llm_config, function_list=tools)
 
 with open(Path(__file__).resolve().parent / 'css/main.css', 'r') as f:
     css = f.read()
