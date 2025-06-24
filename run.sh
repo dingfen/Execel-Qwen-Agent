@@ -1,12 +1,10 @@
 #!/bin/bash
 
 # run ollama
-pushd /mnt/h/ollama
-./ollama serve &
+ollama serve &
 sleep 5
-./ollama run qwen3:8b &
+ollama run qwen3:8b &
 sleep 5
-popd
 
 # run excel-mcp-server
 pushd /mnt/h/excel-mcp-server
