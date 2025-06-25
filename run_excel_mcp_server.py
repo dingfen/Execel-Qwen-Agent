@@ -1,10 +1,12 @@
 from qwen_agent.agents import Assistant
 from qwen_agent.utils.output_beautify import typewriter_print
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import argparse
 import uvicorn
+import os
 
 
 def init_agent_service():
@@ -53,6 +55,59 @@ class QueryRequest(BaseModel):
 app = FastAPI()
 bot = init_agent_service()
 
+UPLOAD_FOLDER = '/mnt/h/tmp/excel/'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# 允许上传的文件类型
+ALLOWED_EXTENSIONS = {'csv', 'xls', 'xlsx'}
+
+origins = ["http://0.0.0.0:8080", "http://localhost:8080"]  # 允许的跨域来源
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # 允许跨域的源
+    allow_credentials=True,  # 是否允许携带cookie
+    allow_methods=["*"],  # 允许的方法，这里设置为所有方法
+    allow_headers=["*"],  # 允许的请求头，这里设置为所有请求头
+)
+
+
+def allowed_file(filename: str) -> bool:
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.post("/excel/upload")
+async def upload_excel(file: UploadFile = File(...)):
+    print(file.filename)
+    print("We got it")
+    if not file:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+
+    # 检查文件名是否为空
+    if file.filename == '':
+        raise HTTPException(status_code=400, detail="Empty filename")
+
+    # 检查文件类型是否允许
+    if not allowed_file(file.filename):
+        raise HTTPException(status_code=400, detail="File type not allowed")
+
+    # 限制文件大小（5MB）
+    try:
+        contents = await file.read()
+        if len(contents) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File size exceeds 5MB")
+    finally:
+        await file.seek(0)
+
+    # 保存文件到服务器
+    file_location = os.path.join(UPLOAD_FOLDER, file.filename)
+    with open(file_location, "wb") as f:
+        f.write(contents)
+
+    return {
+        "code": "success",
+        "message": f"File {file.filename} uploaded successfully.",
+        "filename": file.filename,
+        "size": len(contents)
+    }
 
 @app.post("/query")
 def  process_query(request: QueryRequest, stream: bool = True):
