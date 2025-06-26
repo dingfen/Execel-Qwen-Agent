@@ -7,6 +7,7 @@ from pydantic import BaseModel
 import argparse
 import uvicorn
 import os
+import base64
 
 
 def init_agent_service():
@@ -76,8 +77,6 @@ def allowed_file(filename: str) -> bool:
 
 @app.post("/excel/upload")
 async def upload_excel(file: UploadFile = File(...)):
-    print(file.filename)
-    print("We got it")
     if not file:
         raise HTTPException(status_code=400, detail="No file uploaded")
 
@@ -94,6 +93,7 @@ async def upload_excel(file: UploadFile = File(...)):
         contents = await file.read()
         if len(contents) > 5 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="File size exceeds 5MB")
+        encoded_contents = base64.b64encode(contents).decode('utf-8')
     finally:
         await file.seek(0)
 
@@ -101,11 +101,13 @@ async def upload_excel(file: UploadFile = File(...)):
     file_location = os.path.join(UPLOAD_FOLDER, file.filename)
     with open(file_location, "wb") as f:
         f.write(contents)
+    
 
     return {
         "code": "success",
         "message": f"File {file.filename} uploaded successfully.",
         "filename": file.filename,
+        "content": encoded_contents,
         "size": len(contents)
     }
 
