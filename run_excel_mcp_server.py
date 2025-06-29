@@ -1,6 +1,6 @@
 from qwen_agent.agents import Assistant
 from qwen_agent.utils.output_beautify import typewriter_print
-from fastapi import FastAPI, HTTPException, File, UploadFile
+from fastapi import FastAPI, HTTPException, File, UploadFile, Query
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -75,6 +75,7 @@ app.add_middleware(
 def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# 上传文件
 @app.post("/excel/upload")
 async def upload_excel(file: UploadFile = File(...)):
     if not file:
@@ -111,6 +112,31 @@ async def upload_excel(file: UploadFile = File(...)):
         "size": len(contents)
     }
 
+
+@app.get("/excel/download")
+def download_file(filename: str = Query(...)):
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    with open(file_path, "rb") as f:
+        content = f.read()
+    return {"code": "success", "content": base64.b64encode(content).decode("utf-8")}
+
+@app.get("/files/list")
+def list_excel_files():
+    try:
+        # 获取指定目录下的所有文件
+        files = os.listdir(UPLOAD_FOLDER)
+        
+        # 可选：过滤只显示 Excel 支持的文件类型
+        excel_files = [f for f in files if allowed_file(f)]
+        
+        return {"code": "success", "files": excel_files}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Agent 响应 query
 @app.post("/query")
 def  process_query(request: QueryRequest, stream: bool = True):
     messages = [{'role': 'user', 'content': request.query}]
