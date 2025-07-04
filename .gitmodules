@@ -1,3 +1,6 @@
 [submodule "qwen_agent/gui/agent-vue-frontend"]
 	path = qwen_agent/gui/agent-vue-frontend
 	url = git@github.com:dingfen/vue-excel.git
+[submodule "excel-mcp-server"]
+	path = excel-mcp-server
+	url = git@github.com:dingfen/excel-mcp-server.git
