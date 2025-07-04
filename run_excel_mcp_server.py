@@ -9,6 +9,7 @@ import uvicorn
 import os
 import base64
 
+UPLOAD_FOLDER = '/mnt/h/tmp/excel/'
 
 def init_agent_service():
     llm_cfg = {
@@ -22,6 +23,7 @@ def init_agent_service():
         },
         'thought_in_content': True,
     }
+    system = (f'你现在是一位专业的 excel 处理助手，负责帮助用户处理 {UPLOAD_FOLDER} 内的 excel 文件，请在合适的时机调用所需要的工具来帮助你完成用户的请求')
 
     # 步骤2：定义您的工具（MCP + 代码解释器）
     tools = [
@@ -46,7 +48,9 @@ def init_agent_service():
         }
     ]
 
-    bot = Assistant(llm=llm_cfg, function_list=tools)
+    bot = Assistant(llm=llm_cfg,
+                    function_list=tools,
+                    system_message=system,)
     return bot
     
 class QueryRequest(BaseModel):
@@ -56,7 +60,6 @@ class QueryRequest(BaseModel):
 app = FastAPI()
 bot = init_agent_service()
 
-UPLOAD_FOLDER = '/mnt/h/tmp/excel/'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # 允许上传的文件类型
@@ -77,6 +80,7 @@ def allowed_file(filename: str) -> bool:
 
 # 上传文件
 @app.post("/excel/upload")
+@app.post("/excel/update")
 async def upload_excel(file: UploadFile = File(...)):
     if not file:
         raise HTTPException(status_code=400, detail="No file uploaded")
