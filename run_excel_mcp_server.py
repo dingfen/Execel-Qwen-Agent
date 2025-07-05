@@ -1,14 +1,10 @@
 from qwen_agent.agents import Assistant
-from qwen_agent.utils.output_beautify import typewriter_print
-from fastapi import FastAPI, HTTPException, File, UploadFile, Query
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
 import argparse
 import uvicorn
-import os
-from qwen_server import register_routes
+from qwen_server.api import register_routes
+from qwen_server.user import UPLOAD_FOLDER
 
 def init_agent_service():
     llm_cfg = {
@@ -65,16 +61,6 @@ app.add_middleware(
 )
 
 register_routes(app)
-
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    token = credentials.credentials
-    user_id = verify_token(token)  # 自定义函数
-    if not user_id:
-        raise HTTPException(status_code=403, detail="Invalid or expired token")
-    return User(user_id)  # 返回User实例
-
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="启动 FastAPI 服务并指定 host 和 port")

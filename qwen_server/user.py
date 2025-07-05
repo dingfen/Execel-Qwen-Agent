@@ -1,7 +1,8 @@
 # 新建user.py文件，用于存放User类及相关操作
 import os
 
-UPLOAD_FOLDER = '/mnt/h/tmp/excel/'
+UPLOAD_FOLDER = '/mnt/h/tmp/'
+ALLOWED_EXTENSIONS = {'csv', 'xls', 'xlsx'}
 
 
 class User:
@@ -9,12 +10,12 @@ class User:
         self.user_id = user_id
         self.username = username
         self.role = role  # 可以是 "admin", "user" 等
-        self.upload_folder = os.path.join(self.get_upload_folder(), user_id)
+        self.upload_folder = os.path.join(self.get_upload_folder(), user_id, "excel")
         os.makedirs(self.upload_folder, exist_ok=True)
 
     @staticmethod
     def get_upload_folder():
-        return '/mnt/h/tmp/excel/'
+        return UPLOAD_FOLDER
 
     def get_upload_files(self):
         """获取该用户上传的所有文件"""
@@ -53,12 +54,14 @@ class User:
 
     @staticmethod
     def allowed_file(filename: str) -> bool:
-        ALLOWED_EXTENSIONS = {'csv', 'xls', 'xlsx'}
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+test_user=User(user_id="test_user", username="test_user")
 
 # 模拟用户数据库（实际应使用数据库）
-users_db = {}
+users_db = {
+    "test_user_id": test_user
+}
 
 def create_user(user_id: str, username: str = None):
     if user_id in users_db:
