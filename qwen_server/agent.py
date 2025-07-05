@@ -1,6 +1,9 @@
 # 新建agent.py文件，用于智能助手相关功能
 from qwen_agent.agents import Assistant
 from qwen_agent.utils.output_beautify import typewriter_print
+from qwen_server.user import UPLOAD_FOLDER, get_user_by_id
+import re
+import os
 
 def init_agent_service():
     llm_cfg = {
@@ -14,7 +17,7 @@ def init_agent_service():
         },
         'thought_in_content': True,
     }
-    system = (f'你现在是一位专业的 excel 处理助手，负责帮助用户处理 {"/mnt/h/tmp/excel/"} 内的 excel 文件，请在合适的时机调用所需要的工具来帮助你完成用户的请求')
+    system = (f'你现在是一位专业的 excel 处理助手，负责帮助用户处理 {UPLOAD_FOLDER} 内的 excel 文件，请在合适的时机调用所需要的工具来帮助你完成用户的请求。如果调用的工具错误，请及时终止对话并返回错误信息给用户')
 
     # 步骤2：定义您的工具（MCP + 代码解释器）
     tools = [
@@ -43,6 +46,24 @@ def init_agent_service():
                     function_list=tools,
                     system_message=system,)
     return bot
+
+# 目前支持 @file:中文文件名.csv 的格式文件替换，后面必须有空格
+# 支持 @sheet:sheet_name 的格式文件替换，后面必须有空格
+# 支持 @range:A1:B2 的格式文件替换，后面必须有空格
+def preprocess(user_id, raw_query):
+
+    user = get_user_by_id(user_id)
+    file_list = user.get_upload_files()
+    pattern = r'@file:([\u4e00-\u9fa5a-zA-Z0-9_\-()\[\]{}., ]+\.(?:csv|xlsx|xls))\b'
+
+    def replace_func(match):
+        filename = match.group(1)
+        full_path = os.path.join(UPLOAD_FOLDER, user_id, filename)
+        return full_path
+
+    query = re.sub(pattern, replace_func, raw_query)
+    return query
+
 
 # 用于流式响应的函数
 def generate_response(bot, messages):

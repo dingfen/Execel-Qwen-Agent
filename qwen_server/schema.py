@@ -14,6 +14,9 @@
 
 from pydantic import BaseModel
 
+# 请求模型
+class QueryRequest(BaseModel):
+    query: str
 
 class PathConfig(BaseModel):
     work_space_root: str

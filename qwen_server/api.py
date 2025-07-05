@@ -7,12 +7,10 @@ import base64
 import os
 from qwen_agent.utils.output_beautify import typewriter_print
 from qwen_server.user import verify_token, get_user_by_id, delete_user
+from qwen_server.schema import QueryRequest
 
 security = HTTPBearer()
 
-# 请求模型
-class QueryRequest(BaseModel):
-    query: str
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = None):
     # token = credentials.credentials
@@ -110,24 +108,26 @@ def register_routes(app):
         credentials: HTTPAuthorizationCredentials = None,
     ):
         user_id, user = get_current_user(credentials=credentials)
-        print(user_id)
-        print(user)
         files = user.get_upload_files()
         return {"code": "success", "files": files}
 
     # 查询API
     @app.post("/query")
-    def process_query(request: QueryRequest, stream: bool = True):
-        from qwen_server.agent import init_agent_service, generate_response
-        bot = init_agent_service()
-        messages = [{'role': 'user', 'content': request.query}]
+    def process_query(request: QueryRequest, stream: bool = True, credentials: HTTPAuthorizationCredentials = None):
+        from run_excel_mcp_server import excel_mcp_bot
+        from qwen_server.agent import generate_response, preprocess
         
+        user_id, user = get_current_user(credentials)
+        query = preprocess(user_id, request.query)
+        print(query)
+        messages = [{'role': 'user', 'content': query}]
+
         if stream:
-            return StreamingResponse(generate_response(bot, messages), media_type="text/event-stream")
+            return StreamingResponse(generate_response(excel_mcp_bot, messages), media_type="text/event-stream")
         else:
             try:
                 response_plain_text = ''
-                for response in bot.run(messages=messages):
+                for response in excel_mcp_bot.run(messages=messages):
                     response_plain_text = typewriter_print(response, response_plain_text)
                 return {"response": response_plain_text}
             except Exception as e:

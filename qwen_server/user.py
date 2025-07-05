@@ -56,7 +56,7 @@ class User:
     def allowed_file(filename: str) -> bool:
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-test_user=User(user_id="test_user", username="test_user")
+test_user=User(user_id="test_user_id", username="test_user")
 
 # 模拟用户数据库（实际应使用数据库）
 users_db = {
