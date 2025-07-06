@@ -17,9 +17,9 @@ def init_agent_service():
         },
         'thought_in_content': True,
     }
-    system = (f'你现在是一位专业的 excel 处理助手，负责帮助用户处理 {UPLOAD_FOLDER} 内的 excel 文件，请在合适的时机调用所需要的工具来帮助你完成用户的请求。如果调用的工具错误，请及时终止对话并返回错误信息给用户')
+    system = (f'你现在是一位专业的 excel 处理助手，负责帮助用户处理 {UPLOAD_FOLDER} 内的 excel 文件，请尽可能使用python来完成用户的请求。但请注意，请务必在回答的最后加上对用户的追问，询问用户是否立即执行你生成的代码。')
 
-    # 步骤2：定义您的工具（MCP + 代码解释器）
+    # 步骤2：定义您的工具
     tools = [
         {'mcpServers': {
             'time': {
@@ -32,14 +32,7 @@ def init_agent_service():
             }
         }},
         'code_interpreter',
-        {
-            "mcpServers": {
-                "excel-stdio": {
-                    "command": "uv",
-                    "args": ["run", "excel-mcp-server", "stdio"]
-                }
-            }
-        }
+        'calculator'
     ]
 
     bot = Assistant(llm=llm_cfg,
@@ -58,7 +51,7 @@ def preprocess(user_id, raw_query):
 
     def replace_func(match):
         filename = match.group(1)
-        full_path = os.path.join(UPLOAD_FOLDER, user_id, filename)
+        full_path = os.path.join(UPLOAD_FOLDER, user_id, "excel", filename)
         return full_path
 
     query = re.sub(pattern, replace_func, raw_query)
