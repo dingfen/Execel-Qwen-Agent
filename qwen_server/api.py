@@ -3,6 +3,11 @@ from fastapi import Depends, HTTPException, File, UploadFile, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+from qwen_server.agent import whisper_model
+import os
+from pydub import AudioSegment
+
 import base64
 import os
 from qwen_agent.utils.output_beautify import typewriter_print
@@ -132,3 +137,35 @@ def register_routes(app):
                 return {"response": response_plain_text}
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
+            
+    @app.post("/transcriptions")
+    async def transcribe_audio(file: UploadFile = File(...)):
+        # 检查文件类型
+        if not file.filename.endswith(".webm"):
+            raise HTTPException(status_code=400, detail="Only .webm files are allowed")
+
+        # 保存上传的文件到临时路径
+        temp_input_path = f"temp_{file.filename}"
+        with open(temp_input_path, "wb") as buffer:
+            contents = await file.read()
+            buffer.write(contents)
+
+        try:
+            # 转换 .webm 到 .wav
+            audio = AudioSegment.from_file(temp_input_path, format="webm")
+            temp_wav_path = "temp_audio.wav"
+            audio.export(temp_wav_path, format="wav")
+
+            # 使用 Whisper 进行语音识别
+            result = whisper_model.transcribe(temp_wav_path)
+            transcription = result["text"]
+
+            return {"transcription": transcription}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+        finally:
+            # 清理临时文件
+            if os.path.exists(temp_input_path):
+                os.remove(temp_input_path)
+            if os.path.exists(temp_wav_path):
+                os.remove(temp_wav_path)

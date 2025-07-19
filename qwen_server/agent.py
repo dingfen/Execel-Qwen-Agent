@@ -2,6 +2,7 @@
 from qwen_agent.agents import Assistant
 from qwen_agent.utils.output_beautify import typewriter_print
 from qwen_server.user import UPLOAD_FOLDER, get_user_by_id
+import whisper
 import re
 import os
 
@@ -39,6 +40,10 @@ def init_agent_service():
                     function_list=tools,
                     system_message=system,)
     return bot
+
+# 可选: "tiny", "base", "small", "medium", "large"
+whisper_model = whisper.load_model("base", 'cuda', './openai/')
+
 
 # 目前支持 @file:中文文件名.csv 的格式文件替换，后面必须有空格
 # 支持 @sheet:sheet_name 的格式文件替换，后面必须有空格
