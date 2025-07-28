@@ -3,6 +3,7 @@ import os
 
 UPLOAD_FOLDER = '/mnt/h/tmp/'
 ALLOWED_EXTENSIONS = {'csv', 'xls', 'xlsx'}
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 
 class User:
@@ -11,7 +12,9 @@ class User:
         self.username = username
         self.role = role  # 可以是 "admin", "user" 等
         self.upload_folder = os.path.join(self.get_upload_folder(), user_id, "excel")
+        self.upload_image_folder = os.path.join(self.get_upload_folder(), user_id, "image")
         os.makedirs(self.upload_folder, exist_ok=True)
+        os.makedirs(self.upload_image_folder, exist_ok=True)
 
     @staticmethod
     def get_upload_folder():
@@ -27,6 +30,9 @@ class User:
     def file_path(self, filename: str):
         """返回该用户指定文件的路径"""
         return os.path.join(self.upload_folder, filename)
+    
+    def file_image_path(self, filename: str):
+        return os.path.join(self.upload_image_folder, filename)
 
     def delete_file(self, filename: str):
         """删除用户指定文件"""
@@ -47,7 +53,15 @@ class User:
 
     def save_file(self, filename: str, content: bytes):
         """保存文件到用户目录"""
-        file_path = self.file_path(filename)
+        if '.' in filename:
+            if filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS:
+                file_path = self.file_path(filename)
+            elif filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS:
+                file_path = self.file_image_path(filename)
+            else:
+                assert False, '文件格式错误'
+        else:
+            assert False, '文件格式错误'
         with open(file_path, 'wb') as f:
             f.write(content)
         return file_path
@@ -55,6 +69,10 @@ class User:
     @staticmethod
     def allowed_file(filename: str) -> bool:
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    
+    @staticmethod
+    def allowed_image_file(filename: str) -> bool:
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 test_user=User(user_id="test_user_id", username="test_user")
 

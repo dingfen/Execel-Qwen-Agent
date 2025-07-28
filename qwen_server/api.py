@@ -10,6 +10,9 @@ from pydub import AudioSegment
 
 import base64
 import os
+import tempfile
+import json
+import subprocess
 from qwen_agent.utils.output_beautify import typewriter_print
 from qwen_server.user import verify_token, get_user_by_id, delete_user
 from qwen_server.schema import QueryRequest
@@ -169,3 +172,109 @@ def register_routes(app):
                 os.remove(temp_input_path)
             if os.path.exists(temp_wav_path):
                 os.remove(temp_wav_path)
+
+    @app.post("/img2excel")
+    async def img2excel(file: UploadFile = File(...), credentials: HTTPAuthorizationCredentials = None,):
+        """
+        处理表格图片，生成HTML和Excel文件并返回结果
+        """
+        user_id, user = get_current_user(credentials=credentials)
+        if not file:
+            raise HTTPException(status_code=400, detail="No file uploaded")
+
+        # 检查文件名是否为空
+        if file.filename == '':
+            raise HTTPException(status_code=400, detail="Empty filename")
+
+        # 检查文件类型是否允许
+        if not user.allowed_image_file(file.filename):
+            raise HTTPException(status_code=400, detail="File type not allowed")
+
+        # 限制文件大小（5MB）
+        try:
+            contents = await file.read()
+            if len(contents) > 5 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail="File size exceeds 5MB")
+            encoded_contents = base64.b64encode(contents).decode('utf-8')
+        finally:
+            await file.seek(0)
+
+
+        file_location = user.save_file(file.filename, contents)
+
+        try:
+            # 处理表格图片 (这里整合 temp.py 的核心功能)
+            # result = await image2excel(file_location, user.file_path(None))
+            # 创建临时文件来存储参数和结果
+            with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as params_file:
+                params_file_path = params_file.name
+                json.dump({
+                    "input_image": file_location,
+                    "output_dir": user.file_image_path('')
+                }, params_file)
+                
+            with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as result_file:
+                result_file_path = result_file.name
+                
+            # 使用 uvx 运行 image2excel 脚本
+            # 假设你有一个名为 image2excel 的虚拟环境
+            cmd = [
+                "uvx",
+                "--with-requirements", "ocr/requirements.txt",  # 替换为实际路径
+                "python",
+                "-c",
+                f"""
+import sys
+import json
+sys.path.append('ocr/')  # 替换为你的项目路径
+from ocr.img2excel import image2excel
+import asyncio
+
+# 读取参数
+with open('{params_file_path}', 'r') as f:
+    params = json.load(f)
+
+# 运行异步函数
+result = asyncio.run(image2excel(params['input_image'], params['output_dir']))
+
+# 保存结果
+with open('{result_file_path}', 'w') as f:
+    json.dump(result, f)
+"""
+            ]
+
+            # 执行命令
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # 5分钟超时
+            
+            # 清理参数文件
+            os.unlink(params_file_path)
+            
+            if result.returncode != 0:
+                # 清理结果文件
+                os.unlink(result_file_path)
+                raise Exception(f"Image2Excel process failed: {result.stderr}")
+                
+            # 读取结果文件
+            with open(result_file_path, 'r') as f:
+                result_data = json.load(f)
+                
+            # 清理结果文件
+            os.unlink(result_file_path)
+            
+            if "status" in result_data and result_data["status"] == "error":
+                raise Exception(result_data["message"])
+            
+            return {
+                "status": "success",
+                "filename": file.filename,
+                "message": "img2excel completed",
+                "html_content": result_data["html_content"],
+                "excel_path": result_data["excel_path"]
+            }
+        except subprocess.TimeoutExpired:
+            raise HTTPException(status_code=500, detail="Image processing timeout")
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"处理失败: {str(e)}"
+            }
