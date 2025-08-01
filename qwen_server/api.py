@@ -210,7 +210,7 @@ def register_routes(app):
                 params_file_path = params_file.name
                 json.dump({
                     "input_image": file_location,
-                    "output_dir": user.file_image_path('')
+                    "output_dir": user.file_path(file.filename)
                 }, params_file)
                 
             with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as result_file:
@@ -257,20 +257,21 @@ with open('{result_file_path}', 'w') as f:
             # 读取结果文件
             with open(result_file_path, 'r') as f:
                 result_data = json.load(f)
-                
             # 清理结果文件
             os.unlink(result_file_path)
             
             if "status" in result_data and result_data["status"] == "error":
                 raise Exception(result_data["message"])
             
-            return {
+            response = {
                 "status": "success",
                 "filename": file.filename,
-                "message": "img2excel completed",
-                "html_content": result_data["html_content"],
-                "excel_path": result_data["excel_path"]
+                "html_content": [],
+                "excel_path": []
             }
+            response["html_content"] = [ data['html_content'] for data in result_data.values() ]
+            response["excel_path"] = [ data['excel_path'] for data in result_data.values() ]
+            return response
         except subprocess.TimeoutExpired:
             raise HTTPException(status_code=500, detail="Image processing timeout")
         except Exception as e:
