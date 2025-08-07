@@ -45,14 +45,14 @@ def init_agent_service():
 whisper_model = whisper.load_model("base", 'cuda', './openai/')
 
 
-# 目前支持 @file:中文文件名.csv 的格式文件替换，后面必须有空格
+# 目前支持 @中文文件名.csv 的格式文件替换，后面必须有空格
 # 支持 @sheet:sheet_name 的格式文件替换，后面必须有空格
 # 支持 @range:A1:B2 的格式文件替换，后面必须有空格
 def preprocess(user_id, raw_query):
 
     user = get_user_by_id(user_id)
     file_list = user.get_upload_files()
-    pattern = r'@file:([\u4e00-\u9fa5a-zA-Z0-9_\-()\[\]{}., ]+\.(?:csv|xlsx|xls))\b'
+    pattern = r'@([\u4e00-\u9fa5a-zA-Z0-9_\-()\[\]{}., ]+\.(?:csv|xlsx|xls))\b'
 
     def replace_func(match):
         filename = match.group(1)
